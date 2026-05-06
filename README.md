@@ -38,10 +38,9 @@
 
 ## 📸 界面预览
 
-| 记账模式 | 订单模式 |
-|----------|----------|
-| ![记账模式]<img width="1225" height="1394" alt="屏幕截图 2026-05-06 182050" src="https://github.com/user-attachments/assets/da28911f-0cff-4370-9289-e5db02216ae4" />
- | ![订单模式](./screenshots/order.png) |
+[记账模式]<img width="1225" height="1394" alt="屏幕截图 2026-05-06 182050" src="https://github.com/user-attachments/assets/da28911f-0cff-4370-9289-e5db02216ae4" />
+ [订单模式]<img width="2229" height="1227" alt="屏幕截图 2026-05-06 185217" src="https://github.com/user-attachments/assets/10fedd17-9258-40e0-aabd-b02ac39689c6" />
+ 
 
 
 

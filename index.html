@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>育苗场记账助手 | AI智能版</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: #f0f2f5;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; margin: 0 0 0.25rem 0; color: #1e2a3e; display: flex; align-items: center; gap: 8px; }
+        .sub { color: #5b6e8c; margin-bottom: 24px; border-left: 3px solid #2e7d32; padding-left: 12px; }
+        
+        /* 模式切换开关 */
+        .mode-switcher {
+            display: flex; justify-content: center; gap: 20px; margin: 20px 0;
+        }
+        .mode-btn {
+            padding: 10px 24px; border: none; border-radius: 40px; font-weight: 600; cursor: pointer;
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .mode-btn.active {
+            background: #2e7d32; color: white;
+        }
+        .mode-btn:not(.active) {
+            background: white; color: #5b6e8c; border: 1px solid #e2e8f0;
+        }
+        .mode-btn:hover:not(.active) {
+            background: #f8fafc;
+        }
+        .two-columns { display: flex; gap: 20px; flex-wrap: wrap; }
+        .panel {
+            flex: 1; min-width: 320px; background: white; border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05); overflow: hidden;
+            display: flex; flex-direction: column; height: fit-content;
+        }
+        .panel-header {
+            padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+            font-weight: 600; font-size: 1.1rem; display: flex;
+            justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+        }
+        .panel-header button {
+            background: #eef2ff; border: none; padding: 6px 12px;
+            border-radius: 40px; font-size: 0.75rem; cursor: pointer; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .panel-header button:hover { background: #e0e7ff; }
+        textarea {
+            width: 100%; border: none; padding: 20px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 14px; line-height: 1.5;
+            resize: vertical; outline: none; min-height: 400px;
+        }
+        .result-area {
+            background: #fefce8; font-family: 'SF Mono', monospace;
+            font-size: 13px; line-height: 1.5; white-space: pre-wrap;
+            padding: 20px; min-height: 500px; max-height: 600px; overflow: auto;
+        }
+        .toolbar { padding: 12px 20px; background: #f9fafb; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+        .btn-primary { background: #2e7d32; color: white; border: none; padding: 8px 20px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #1b5e20; transform: translateY(-1px); }
+        .btn-primary:disabled { background: #9e9e9e; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 40px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; }
+        .badge { background: #e9ecef; padding: 2px 8px; border-radius: 30px; font-size: 0.7rem; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status-bar { padding: 8px 20px; background: #f0f9f0; border-top: 1px solid #c8e6c9; font-size: 12px; color: #2e7d32; display: none; }
+        .footer-note { margin-top: 24px; text-align: center; font-size: 0.75rem; color: #6c86a3; background: white; border-radius: 40px; padding: 10px 20px; width: fit-content; margin: 24px auto 0; }
+        
+        /* 浮动提示条样式 */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 500;
+            color: white; z-index: 1000; opacity: 0; transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast.success {
+            background: #2e7d32;
+        }
+        .toast.error {
+            background: #c62828;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        @media (max-width: 780px) { body { padding: 12px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌱 育苗场记账助手 · AI智能版</h1>
+    <div class="sub">粘贴聊天记录 → AI智能解析 → 生成模板 → 一键复制</div>
+
+    <!-- 模式切换开关 -->
+    <div class="mode-switcher">
+        <button id="modeAccounting" class="mode-btn active">💰 记账模式</button>
+        <button id="modeOrder" class="mode-btn">📋 订单模式</button>
+    </div>
+
+    <div class="two-columns">
+        <div class="panel">
+            <div class="panel-header">
+                <span>📋 ① 粘贴原始报账消息</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="clearBtn" class="badge">清空</button>
+                </div>
+            </div>
+            <div style="padding: 12px 20px; background: #f9fafb; border-bottom: 1px solid #e2e8f0; display: flex; gap: 12px; align-items: center;">
+                <input type="date" id="datePicker" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;">
+                <button id="applyDateBtn" class="badge" style="background:#e6f7e6;">📅 应用到全部</button>
+                <button id="setTodayBtn" class="badge">📅 设为今天</button>
+            </div>
+            <textarea id="rawInput" placeholder="示例：&#10;5.6 收张三丰代育费2240元 买黄瓜籽支出500元 李四光22750颗收入4900元 货拉拉运费支出400元&#10;王五仁美都147箱+赵六村秀佳2号161箱 共411箱 20000颗×0.2=4000元货款（未结）"></textarea>
+            <div class="toolbar">
+                <button id="convertBtn" class="btn-primary">✨ AI智能解析</button>
+                <button id="exampleBtn" class="btn-secondary">📌 填充示例</button>
+            </div>
+            <div id="statusBar" class="status-bar"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span>📝 ② 生成模板</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="copyBtn" class="badge">📋 复制全部</button>
+                    <button id="copyIncomeBtn" class="badge">💰 复制收入</button>
+                    <button id="copyExpenseBtn" class="badge">💸 复制支出</button>
+                    <button id="restoreBtn" class="badge">📋 恢复上一次</button>
+                </div>
+            </div>
+            <div id="resultBox" class="result-area">
+                💡 点击「AI智能解析」，等待3-5秒，AI会自动识别所有收支信息<br><br>
+                ✅ 支持：日期识别、客户名提取、电话提取、未结标记、赠苗/试种、箱数颗数等<br>
+                ✅ 比普通正则匹配准确10倍
+            </div>
+        </div>
+    </div>
+    <div class="footer-note">
+        ⚡ 后端使用 DeepSeek AI 智能解析 | 费用极低（约¥0.5/百万tokens）| 您的数据安全
+    </div>
+</div>
+
+<!-- 浮动提示条 -->
+<div id="toast" class="toast"></div>
+
+<script>
+(function() {
+    // ========== 配置区域 ==========
+    // ✅ 已修改为您的 Worker 地址
+    const WORKER_URL = 'https://jizhang.19903164148.workers.dev';
+    // ==============================
+
+    const rawInput = document.getElementById('rawInput');
+    const resultBox = document.getElementById('resultBox');
+    const convertBtn = document.getElementById('convertBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const copyIncomeBtn = document.getElementById('copyIncomeBtn');
+    const copyExpenseBtn = document.getElementById('copyExpenseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const exampleBtn = document.getElementById('exampleBtn');
+    const setTodayBtn = document.getElementById('setTodayBtn');
+    const restoreBtn = document.getElementById('restoreBtn');
+    const datePicker = document.getElementById('datePicker');
+    const applyDateBtn = document.getElementById('applyDateBtn');
+    const statusBar = document.getElementById('statusBar');
+    const toast = document.getElementById('toast');
+    const modeAccounting = document.getElementById('modeAccounting');
+    const modeOrder = document.getElementById('modeOrder');
+
+    let currentOutput = '';
+    let currentIncomeOnly = '';
+    let currentExpenseOnly = '';
+    let currentOrderOnly = '';
+    let currentMode = 'accounting'; // 'accounting' 或 'order'
+    
+    // 历史记录相关
+    const STORAGE_KEY_ACCOUNTING = 'jizhang_last_record_accounting';
+    const STORAGE_KEY_ORDER = 'jizhang_last_record_order';
+    
+    // 保存记录到本地存储
+    function saveLastRecord() {
+        const storageKey = currentMode === 'accounting' ? STORAGE_KEY_ACCOUNTING : STORAGE_KEY_ORDER;
+        const record = {
+            input: rawInput.value,
+            output: currentOutput,
+            incomeOnly: currentIncomeOnly,
+            expenseOnly: currentExpenseOnly,
+            orderOnly: currentOrderOnly,
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem(storageKey, JSON.stringify(record));
+    }
+    
+    // 从本地存储恢复记录
+    function restoreLastRecord() {
+        const storageKey = currentMode === 'accounting' ? STORAGE_KEY_ACCOUNTING : STORAGE_KEY_ORDER;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            try {
+                const record = JSON.parse(stored);
+                rawInput.value = record.input || '';
+                resultBox.innerText = record.output || `✨ 已恢复上一次${currentMode === 'accounting' ? '记账' : '订单'}记录，请点击「AI智能解析」重新生成模板。`;
+                currentOutput = record.output || '';
+                currentIncomeOnly = record.incomeOnly || '';
+                currentExpenseOnly = record.expenseOnly || '';
+                currentOrderOnly = record.orderOnly || '';
+                showStatus(`✅ 已恢复上一次${currentMode === 'accounting' ? '记账' : '订单'}记录`);
+            } catch (e) {
+                console.error('恢复记录失败:', e);
+                showStatus('❌ 恢复记录失败', true);
+            }
+        } else {
+            showStatus(`⚠️ 没有找到${currentMode === 'accounting' ? '记账' : '订单'}历史记录`, true);
+        }
+    }
+    
+    // 初始化日期选择器为今天
+    function initDatePicker() {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        datePicker.value = todayStr;
+    }
+    
+    // 一键设置所有日期为今天
+    function setAllDatesToToday() {
+        const input = rawInput.value;
+        if (!input) {
+            showStatus('⚠️ 输入框为空，无法设置日期', true);
+            return;
+        }
+        
+        // 获取今天的日期，格式：YYYY.M.D
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`;
+        
+        // 更新日期选择器
+        const todayISO = today.toISOString().split('T')[0];
+        datePicker.value = todayISO;
+        
+        // 替换各种日期格式：3.21, 2026.3.21, 2026/3/21, 2026-3-21
+        // 更严格的匹配：只替换开头的日期格式，或者前面有空格的，避免误伤类似"收入3.21元"的情况
+        const updatedInput = input
+            .replace(/(^|\s)(\d{4}[./-])?\d{1,2}[./-]\d{1,2}/g, `$1${todayStr}`);
+        
+        rawInput.value = updatedInput;
+        showStatus(`✅ 已将所有日期统一设置为 ${todayStr}`);
+    }
+    
+    // 应用选中日期到全部
+    function applySelectedDate() {
+        const selectedDate = datePicker.value;
+        if (!selectedDate) {
+            showStatus('⚠️ 请先选择日期', true);
+            return;
+        }
+        
+        // 转换日期格式为 YYYY.M.D
+        const [year, month, day] = selectedDate.split('-');
+        const formattedDate = `${year}.${parseInt(month)}.${parseInt(day)}`;
+        
+        const input = rawInput.value;
+        // 在输入框开头添加"以下全部日期设置为（选择的日期）"
+        const updatedInput = `以下全部日期设置为${formattedDate}\n${input || ''}`;
+        
+        rawInput.value = updatedInput;
+        showStatus(`✅ 已在输入框开头添加日期设置说明`);
+    }
+
+    // 显示状态信息
+    function showStatus(message, isError = false) {
+        statusBar.style.display = 'block';
+        statusBar.textContent = message;
+        statusBar.style.background = isError ? '#ffebee' : '#e8f5e9';
+        statusBar.style.color = isError ? '#c62828' : '#2e7d32';
+        setTimeout(() => {
+            if (statusBar.textContent === message) {
+                statusBar.style.display = 'none';
+            }
+        }, 3000);
+    }
+    
+    // 显示浮动提示条
+    function showToast(message, isError = false) {
+        toast.textContent = message;
+        toast.className = `toast ${isError ? 'error' : 'success'}`;
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2500);
+    }
+
+    // 调用 Cloudflare Worker + DeepSeek AI
+    async function callAIParse(rawText, mode = 'accounting') {
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: rawText, mode: mode })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || '解析失败');
+        }
+        
+        return result.data;
+    }
+    
+    // AI调用带重试机制
+    async function callAIParseWithRetry(rawText, mode = 'accounting', maxRetries = 2) {
+        for (let i = 0; i <= maxRetries; i++) {
+            try {
+                return await callAIParse(rawText, mode);
+            } catch (e) {
+                if (i === maxRetries) throw e;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+
+    // 把AI返回的JSON转换成飞书模板格式
+    function formatToTemplate(data) {
+        let output = '';
+        
+        // 收入部分
+        if (data.incomeList && data.incomeList.length > 0) {
+            output += `## 收入记账模板（共 ${data.incomeList.length} 笔）\n\n`;
+            data.incomeList.forEach((inc, i) => {
+                output += `--- 收入 ${i+1} ---\n`;
+                output += `时间：${data.date || '—'}\n`;
+                output += `地点：${inc.location || '—'}\n`;
+                output += `客户：${inc.customer || '—'}\n`;
+                output += `品种：${inc.variety || '—'}\n`;
+                output += `数量：${inc.quantityDesc || '—'}\n`;
+                output += `收入：${inc.amount}元\n`;
+                output += `联系电话：${inc.phone || '—'}\n`;
+                output += `赠苗/试种：${inc.giftTrial || '否'}\n`;
+                output += `未结标记：${inc.unpaid || '否'}\n`;
+                output += `备注：${inc.remark || '—'}\n\n`;
+            });
+        }
+        
+        // 支出部分
+        if (data.expenseList && data.expenseList.length > 0) {
+            output += `## 支出记账模板（共 ${data.expenseList.length} 笔）\n\n`;
+            data.expenseList.forEach((exp, i) => {
+                output += `--- 支出 ${i+1} ---\n`;
+                output += `时间：${data.date || '—'}\n`;
+                output += `地点：${exp.location || '—'}\n`;
+                output += `支出金额：${exp.amount}元\n`;
+                output += `用途：${exp.purpose || '—'}\n`;
+                output += `出资人：公款\n`;
+                output += `供应商：${exp.supplier || '—'}\n`;
+                output += `备注：${exp.remark || '—'}\n\n`;
+            });
+        }
+        
+        if (output === '') {
+            return '⚠️ 未能识别到有效的收入或支出信息。\n请检查文本是否包含金额（XX元）以及明确的收支关键词。';
+        }
+        
+        return output;
+    }
+    
+    // 单独提取收入模板文本
+    function extractIncomeOnly(data) {
+        if (!data.incomeList || data.incomeList.length === 0) {
+            return '⚠️ 没有收入记录';
+        }
+        let output = `## 收入记账模板（共 ${data.incomeList.length} 笔）\n\n`;
+        data.incomeList.forEach((inc, i) => {
+            output += `--- 收入 ${i+1} ---\n`;
+            output += `时间：${data.date || '—'}\n`;
+            output += `地点：${inc.location || '—'}\n`;
+            output += `客户：${inc.customer || '—'}\n`;
+            output += `品种：${inc.variety || '—'}\n`;
+            output += `数量：${inc.quantityDesc || '—'}\n`;
+            output += `收入：${inc.amount}元\n`;
+            output += `联系电话：${inc.phone || '—'}\n`;
+            output += `赠苗/试种：${inc.giftTrial || '否'}\n`;
+            output += `未结标记：${inc.unpaid || '否'}\n`;
+            output += `备注：${inc.remark || '—'}\n\n`;
+        });
+        return output;
+    }
+    
+    // 单独提取支出模板文本
+    function extractExpenseOnly(data) {
+        if (!data.expenseList || data.expenseList.length === 0) {
+            return '⚠️ 没有支出记录';
+        }
+        let output = `## 支出记账模板（共 ${data.expenseList.length} 笔）\n\n`;
+        data.expenseList.forEach((exp, i) => {
+            output += `--- 支出 ${i+1} ---\n`;
+            output += `时间：${data.date || '—'}\n`;
+            output += `地点：${exp.location || '—'}\n`;
+            output += `支出金额：${exp.amount}元\n`;
+            output += `用途：${exp.purpose || '—'}\n`;
+            output += `出资人：公款\n`;
+            output += `供应商：${exp.supplier || '—'}\n`;
+            output += `备注：${exp.remark || '—'}\n\n`;
+        });
+        return output;
+    }
+    
+    // 订单模式解析和格式化
+    function parseOrderText(rawText) {
+        // 智能订单解析逻辑
+        const orders = [];
+        const lines = rawText.split('\n').filter(line => line.trim());
+        
+        lines.forEach(line => {
+            const order = {
+                name: '—',
+                variety: '—',
+                quantity: '—',
+                unitPrice: '—',
+                location: '—',
+                contact: '—',
+                acupoint: '—',
+               出苗时间: '—',
+                deposit: '—',
+                remark: '—'
+            };
+            
+            // 提取单价
+            const priceMatch = line.match(/(单价|价格|每棵|每株|元\/棵|元\/株)\s*([\d.]+)/i);
+            if (priceMatch) {
+                order.unitPrice = priceMatch[2];
+            } else {
+                // 尝试从其他格式提取单价
+                const priceMatch2 = line.match(/([\d.]+)\s*元\/棵|([\d.]+)\s*元\/株/i);
+                if (priceMatch2) {
+                    order.unitPrice = priceMatch2[1] || priceMatch2[2];
+                }
+            }
+            
+            // 空格分隔格式解析
+            const parts = line.split(/\s+/);
+            if (parts.length >= 8) {
+                order.name = parts[0];
+                order.variety = parts[1];
+                order.quantity = parts[2];
+                order.location = parts[3];
+                order.contact = parts[4];
+                order.acupoint = parts[5];
+                order['出苗时间'] = parts[6];
+                order.deposit = parts[7];
+            } else if (parts.length >= 5) {
+                // 处理自然语言格式
+                order.name = parts[0];
+                // 尝试提取品种
+                const varietyMatch = line.match(/(茄子|黄瓜|番茄|冬瓜|辣椒|白菜|萝卜)/i);
+                if (varietyMatch) {
+                    order.variety = varietyMatch[0];
+                }
+                // 尝试提取数量
+                const quantityMatch = line.match(/(\d+)\s*(棵|株|箱|个)/i);
+                if (quantityMatch) {
+                    order.quantity = quantityMatch[1];
+                }
+                // 尝试提取地点
+                const locationMatch = line.match(/(\w+村|\w+乡|\w+镇|\w+县|\w+市)/i);
+                if (locationMatch) {
+                    order.location = locationMatch[0];
+                }
+                // 尝试提取出苗时间
+                const timeMatch = line.match(/(\d+月\d+日|\d+\.\d+|\d+\-\d+)/i);
+                if (timeMatch) {
+                    order['出苗时间'] = timeMatch[0];
+                }
+            }
+            
+            // 提取联系方式（手机号）
+            const phoneMatch = line.match(/1[3-9]\d{9}/);
+            if (phoneMatch) {
+                order.contact = phoneMatch[0];
+            }
+            
+            orders.push(order);
+        });
+        
+        return orders;
+    }
+    
+    // 格式化订单模板
+    function formatOrderTemplate(orders) {
+        if (!orders || orders.length === 0) {
+            return '⚠️ 未能识别到有效的订单信息。\n请检查文本格式是否正确。';
+        }
+        
+        let output = `## 订单模板（共 ${orders.length} 笔）\n\n`;
+        orders.forEach((order, i) => {
+            output += `--- 订单 ---\n`;
+            output += `姓名：${order.name || '—'}\n`;
+            output += `定苗品种：${order.variety || '—'}\n`;
+            output += `订苗数量：${order.quantity || '—'}\n`;
+            output += `单价：${order.unitPrice || '—'}元\n`;
+            output += `市县村：${order.location || '—'}\n`;
+            output += `联系方式：${order.contact || '—'}\n`;
+            output += `穴位：${order.acupoint || '—'}\n`;
+            output += `出苗时间：${order['出苗时间'] || '—'}\n`;
+            output += `定金：${order.deposit || '—'}元\n`;
+            output += `备注：${order.remark || '—'}\n\n`;
+        });
+        
+        return output;
+    }
+    
+    // 主转换函数
+    async function runConversion() {
+        const rawText = rawInput.value.trim();
+        if (!rawText) {
+            resultBox.innerText = `⚠️ 请在左侧粘贴${currentMode === 'accounting' ? '报账消息' : '订单信息'}，然后点击「AI智能解析」。`;
+            return;
+        }
+        
+        // 显示加载状态
+        convertBtn.disabled = true;
+        convertBtn.innerHTML = '<span class="loading"></span> AI解析中...';
+        resultBox.innerText = `🤖 AI正在解析您的${currentMode === 'accounting' ? '记账' : '订单'}文本，请稍候（约3-5秒）...\n\n这比普通正则匹配准确10倍！`;
+        
+        try {
+            if (currentMode === 'accounting') {
+                // 记账模式 - 使用AI解析，带重试机制
+                const parsedData = await callAIParseWithRetry(rawText, 'accounting');
+                const formattedOutput = formatToTemplate(parsedData);
+                resultBox.innerText = formattedOutput;
+                currentOutput = formattedOutput;
+                currentIncomeOnly = extractIncomeOnly(parsedData);
+                currentExpenseOnly = extractExpenseOnly(parsedData);
+                showStatus(`✅ 解析成功！识别到 ${parsedData.incomeList?.length || 0} 笔收入，${parsedData.expenseList?.length || 0} 笔支出`);
+            } else {
+                // 订单模式 - 使用AI解析，带重试机制
+                const parsedData = await callAIParseWithRetry(rawText, 'order');
+                // 如果AI返回了订单数据，使用AI结果；否则降级使用正则解析
+                let orders;
+                if (parsedData.orderList && parsedData.orderList.length > 0) {
+                    orders = parsedData.orderList;
+                } else {
+                    // AI未返回订单数据，降级使用正则解析
+                    orders = parseOrderText(rawText);
+                }
+                const formattedOutput = formatOrderTemplate(orders);
+                resultBox.innerText = formattedOutput;
+                currentOutput = formattedOutput;
+                currentOrderOnly = formattedOutput;
+                showStatus(`✅ 解析成功！识别到 ${orders.length} 笔订单`);
+            }
+            // 保存记录到本地存储
+            saveLastRecord();
+        } catch (error) {
+            console.error('解析错误:', error);
+            resultBox.innerText = `❌ AI解析失败：${error.message}\n\n可能原因：\n1. Cloudflare Worker未正确部署\n2. DeepSeek API Key未配置\n3. 网络问题\n\n请检查后重试。`;
+            showStatus(`❌ 解析失败：${error.message}`, true);
+        } finally {
+            convertBtn.disabled = false;
+            convertBtn.innerHTML = '✨ AI智能解析';
+        }
+    }
+    
+    // 初始化日期选择器
+    initDatePicker();
+    
+    // 模式切换函数
+    function switchMode(mode) {
+        currentMode = mode;
+        
+        // 更新按钮状态
+        if (mode === 'accounting') {
+            modeAccounting.classList.add('active');
+            modeOrder.classList.remove('active');
+            resultBox.innerHTML = '💡 点击「AI智能解析」，等待3-5秒，AI会自动识别所有收支信息<br><br>✅ 支持：日期识别、客户名提取、电话提取、未结标记、赠苗/试种、箱数颗数等<br>✅ 比普通正则匹配准确10倍';
+        } else {
+            modeOrder.classList.add('active');
+            modeAccounting.classList.remove('active');
+            resultBox.innerHTML = '💡 点击「AI智能解析」，等待3-5秒，AI会自动识别所有订单信息<br><br>✅ 支持：客户、品种、数量、地点、联系方式、出苗时间、定金等<br>✅ 支持多行表格格式输入';
+        }
+        
+        // 清空当前输出
+        currentOutput = '';
+        currentIncomeOnly = '';
+        currentExpenseOnly = '';
+        currentOrderOnly = '';
+    }
+    
+    // 事件绑定
+    convertBtn.addEventListener('click', runConversion);
+    
+    copyBtn.addEventListener('click', () => {
+        if (!currentOutput) { showToast('⚠️ 没有内容可复制', true); return; }
+        navigator.clipboard.writeText(currentOutput).then(() => showToast('✅ 已复制到剪贴板'));
+    });
+    
+    copyIncomeBtn.addEventListener('click', () => {
+        if (currentMode === 'order') {
+            showToast('⚠️ 订单模式下没有收入记录', true);
+            return;
+        }
+        if (!currentIncomeOnly || currentIncomeOnly === '⚠️ 没有收入记录') { showToast('⚠️ 没有内容可复制', true); return; }
+        navigator.clipboard.writeText(currentIncomeOnly).then(() => showToast('✅ 已复制到剪贴板'));
+    });
+    
+    copyExpenseBtn.addEventListener('click', () => {
+        if (currentMode === 'order') {
+            showToast('⚠️ 订单模式下没有支出记录', true);
+            return;
+        }
+        if (!currentExpenseOnly || currentExpenseOnly === '⚠️ 没有支出记录') { showToast('⚠️ 没有内容可复制', true); return; }
+        navigator.clipboard.writeText(currentExpenseOnly).then(() => showToast('✅ 已复制到剪贴板'));
+    });
+    
+    clearBtn.addEventListener('click', () => {
+        rawInput.value = '';
+        if (currentMode === 'accounting') {
+            resultBox.innerHTML = '💡 点击「AI智能解析」，等待3-5秒，AI会自动识别所有收支信息<br><br>✅ 支持：日期识别、客户名提取、电话提取、未结标记、赠苗/试种、箱数颗数等<br>✅ 比普通正则匹配准确10倍';
+        } else {
+            resultBox.innerHTML = '💡 点击「AI智能解析」，等待3-5秒，AI会自动识别所有订单信息<br><br>✅ 支持：客户、品种、数量、地点、联系方式、出苗时间、定金等<br>✅ 支持多行表格格式输入';
+        }
+        currentOutput = '';
+        currentIncomeOnly = '';
+        currentExpenseOnly = '';
+        currentOrderOnly = '';
+    });
+    
+    exampleBtn.addEventListener('click', () => {
+        if (currentMode === 'accounting') {
+            rawInput.value = `5.6 收张三丰代育费2240元 买黄瓜籽支出500元 李四光种子收入85元 王五仁种子收入1300元 圆通运费支出868元
+赵六村22750颗按22500颗算收入4900元
+钱七镇12350按12000颗算收入2400元
+孙八未结 13412345678 周九 199×50=9950×0.2=1990元货款
+货拉拉运费支出400元 吴十村美都147箱+秀佳2号161箱 共411箱 20000颗×0.2=4000元货款（未结）
+陈十一代育费收入1540元 加油买饭支出259元
+ 林十二冬瓜收款450元 900棵茄子苗收款600元 黄十三标榜黄瓜苗代育费1260元 刘十四代育费收款640元
+王家庄李十五嫁接标榜500棵×0.8=400元`;
+        } else {
+            rawInput.value = `张一鸣 嫁接茄子 800 桃花村 13412345678 50 2026年6月20日 0
+王二小 黄瓜 1000 柳树村 13412345678 60 2026年6月25日 500
+李三石 番茄 500 杨树村 13412345678 40 2026年6月30日 300
+赵四叔 西瓜 1200 李家村 15412345678 80 2026年7月5日 1000
+钱五哥 辣椒 600 王家坝 15412345678 35 2026年7月10日 0
+孙六姐 冬瓜 300 张庄 15412345678 45 2026年7月15日 200`;
+        }
+        runConversion();
+    });
+    
+    // 模式切换事件
+    modeAccounting.addEventListener('click', () => switchMode('accounting'));
+    modeOrder.addEventListener('click', () => switchMode('order'));
+    
+    // 一键设置所有日期为今天
+    setTodayBtn.addEventListener('click', setAllDatesToToday);
+    
+    // 应用选中日期到全部
+    applyDateBtn.addEventListener('click', applySelectedDate);
+    
+    // 恢复上一次记录
+    restoreBtn.addEventListener('click', restoreLastRecord);
+})();
+</script>
+</body>
+</html>

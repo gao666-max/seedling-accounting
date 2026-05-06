@@ -40,10 +40,8 @@
 
 | 记账模式 | 订单模式 |
 |----------|----------|
-| ![记账模式](./screenshots/accounting.png) | ![订单模式](./screenshots/order.png) |
+| ![记账模式]<img width="1225" height="1394" alt="屏幕截图 2026-05-06 182050" src="https://github.com/user-attachments/assets/da28911f-0cff-4370-9289-e5db02216ae4" />
+ | ![订单模式](./screenshots/order.png) |
 
-> 截图文件需自行添加到 `screenshots/` 文件夹
 
----
 
-## 🛠️ 技术架构
